@@ -51,17 +51,28 @@ class LitCoMER(pl.LightningModule):
         tgt, out = to_bi_tgt_out(batch.indices, self.device)
         out_hat = self(batch.imgs, batch.mask, tgt)
         loss = ce_loss(out_hat, out)
-        self.log("train_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log("train_loss", loss, on_step=False, on_epoch=True, sync_dist=True, batch_size=len(batch))
         return loss
 
     def validation_step(self, batch: Batch, _):
         tgt, out = to_bi_tgt_out(batch.indices, self.device)
         out_hat = self(batch.imgs, batch.mask, tgt)
         loss = ce_loss(out_hat, out)
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        hyps = self.approximate_joint_search(batch.imgs, batch.mask)
-        self.exprate_recorder([h.seq for h in hyps], batch.indices)
-        self.log("val_ExpRate", self.exprate_recorder, prog_bar=True, on_step=False, on_epoch=True)
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=len(batch))
+        
+        # accuracy out_hat vs out
+        mask = out != vocab.PAD_IDX
+        cer = (out_hat.argmax(-1) != out).masked_fill(~mask, 0).reshape(2, len(batch), -1).permute(1, 0, 2).flatten(1,2).sum(-1) / mask.reshape(2, len(batch), -1).permute(1, 0, 2).flatten(1,2).sum(-1)
+        seq_acc = (cer == 0.0).float().mean()
+        self.log(
+            "val_ExpRate",
+            seq_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+            batch_size=len(batch)
+        )
 
     def test_step(self, batch: Batch, _):
         hyps = self.approximate_joint_search(batch.imgs, batch.mask)
