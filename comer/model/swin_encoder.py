@@ -10,8 +10,9 @@ from comer.model.pos_enc import ImgPosEnc
 class SwinEncoder(pl.LightningModule):
     def __init__(self, d_model=512, swin_name="swinv2_base_window8_256"):
         super().__init__()
-        self.input_size = (256, 256)
-        self.backbone = timm.create_model(swin_name, pretrained=True, features_only=True)
+        self.input_size = (256, 512)
+        self.backbone = timm.create_model(swin_name, pretrained=True)
+        self.backbone.set_input_size(self.input_size)
         self.out_channels = self.backbone.feature_info[-1]["num_chs"]
         self.proj = nn.Conv2d(self.out_channels, d_model, kernel_size=1)
         self.pos_enc_2d = ImgPosEnc(d_model, normalize=True)
@@ -22,7 +23,7 @@ class SwinEncoder(pl.LightningModule):
             img = torch.cat([img] * 3, dim=1)
         img = torch.nn.functional.interpolate(img, size=self.input_size, mode="bilinear", align_corners=False)
 
-        feats = self.backbone(img)[-1]  # (B, H, W, C)
+        feats = self.backbone.forward_features(img)  # (B, H, W, C)
         feats = rearrange(feats, "b h w c -> b c h w")        
         feats = self.proj(feats)        # (B, d_model, H, W)
 
