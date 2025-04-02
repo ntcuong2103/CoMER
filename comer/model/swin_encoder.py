@@ -13,9 +13,10 @@ class SwinEncoder(pl.LightningModule):
         self.input_size = (256, 512)
         self.backbone = timm.create_model(swin_name, pretrained=True)
         self.backbone.set_input_size(self.input_size)
+        self.backbone.eval()
         self.out_channels = self.backbone.feature_info[-1]["num_chs"]
         self.proj = nn.Conv2d(self.out_channels, d_model, kernel_size=1)
-        self.pos_enc_2d = ImgPosEnc(d_model, normalize=True)
+        # self.pos_enc_2d = ImgPosEnc(d_model, normalize=True)
         self.norm = nn.LayerNorm(d_model)
 
     def forward(self, img: torch.FloatTensor, img_mask: torch.LongTensor):
@@ -30,6 +31,6 @@ class SwinEncoder(pl.LightningModule):
         B, C, H, W = feats.shape
         feats = rearrange(feats, "b c h w -> b h w c")
         mask = torch.nn.functional.interpolate(img_mask.unsqueeze(1).float(), size=(H, W), mode="nearest").squeeze(1).bool()
-        feats = self.pos_enc_2d(feats, mask)
+        # feats = self.pos_enc_2d(feats, mask)
         feats = self.norm(feats)
         return feats, mask

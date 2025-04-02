@@ -51,7 +51,7 @@ class LitCoMER(pl.LightningModule):
         tgt, out = to_bi_tgt_out(batch.indices, self.device)
         out_hat = self(batch.imgs, batch.mask, tgt)
         loss = ce_loss(out_hat, out)
-        self.log("train_loss", loss, on_step=False, on_epoch=True, sync_dist=True, batch_size=len(batch))
+        self.log("train_loss", loss, on_step=True, on_epoch=True, sync_dist=True, batch_size=len(batch))
         return loss
 
     def validation_step(self, batch: Batch, _):
